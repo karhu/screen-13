@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## Planned
+
+- Fix a few scheduling and merging issues found with specific workloads
+- Add optional new-style Vulkan render passes when not on mobile or requested, see if that improves performance by reducing some of the inter-renderpass optimization steps - possibly a build feature
+- Clean up graph pass API - the names of the methods are not all consistent or in line with the Vulkan-spec terminology
+- Make all Info structs have the same properties: Copy, Exact parameter values sent to Vulkan not magically interpreted and changed by Screen-13
+- New crate name to reflect the stability and functionality of this crate, retire "QBasic" references, sad face
+
+## [0.13.0] - 2025-12-14
+
+## Added
+
+- Image format texel block size/extent support functions (`format_texel_block_size()`/`format_texel_block_extent()`)
+- `Surface::capabilities()` and `Surface::present_modes()` support functions
+
+## Changed
+
+- `Swapchain` allows configurable present modes
+- Custom `ImageType` enum removed and replaced with existing `vk::ImageType`
+
+## Fixed
+
+- Issue where RenderDoc clears images between renderpasses ("undefined img") due to incorrect usage
+  of image layout barriers
+- Out-of-memory errors during image and buffer creation leaked vulkan resource handles
+- Build error seen on error on Android and Raspberry Pi (_See [#105](https://github.com/attackgoat/screen-13/pull/105)_)
+
 ## [0.12.6] - 2025-05-10
 
 ## Added
@@ -626,7 +655,7 @@ _See [#25](https://github.com/attackgoat/screen-13/pull/25) for migration detail
   platforms and require no bare-metal graphics API knowledge
 - "Hello, world!" example using a bitmapped font
 
-[Unreleased]: https://github.com/attackgoat/screen-13/compare/v0.12.5...HEAD
+[Unreleased]: https://github.com/attackgoat/screen-13/compare/v0.12.6...HEAD
 [0.1.0]: https://crates.io/crates/screen-13/0.1.0
 [0.2.0]: https://crates.io/crates/screen-13/0.2.0
 [0.3.0]: https://crates.io/crates/screen-13/0.3.0
@@ -664,3 +693,4 @@ _See [#25](https://github.com/attackgoat/screen-13/pull/25) for migration detail
 [0.12.4]: https://crates.io/crates/screen-13/0.12.4
 [0.12.5]: https://crates.io/crates/screen-13/0.12.5
 [0.12.6]: https://crates.io/crates/screen-13/0.12.6
+[0.13.0]: https://crates.io/crates/screen-13/0.13.0

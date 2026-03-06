@@ -989,56 +989,54 @@ impl Resolver {
                 }
 
                 // Stored depth/stencil attachment
-                if !depth_stencil_set {
-                    if let Some(stored_attachment) = exec.depth_stencil_store {
-                        let attachment = &mut attachments[color_attachment_count];
-                        attachment.fmt = stored_attachment.format;
-                        attachment.sample_count = stored_attachment.sample_count;
-                        attachment.final_layout = if stored_attachment
-                            .aspect_mask
-                            .contains(vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL)
-                        {
-                            attachment.store_op = vk::AttachmentStoreOp::STORE;
-                            attachment.stencil_store_op = vk::AttachmentStoreOp::STORE;
+                if !depth_stencil_set && let Some(stored_attachment) = exec.depth_stencil_store {
+                    let attachment = &mut attachments[color_attachment_count];
+                    attachment.fmt = stored_attachment.format;
+                    attachment.sample_count = stored_attachment.sample_count;
+                    attachment.final_layout = if stored_attachment
+                        .aspect_mask
+                        .contains(vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL)
+                    {
+                        attachment.store_op = vk::AttachmentStoreOp::STORE;
+                        attachment.stencil_store_op = vk::AttachmentStoreOp::STORE;
 
-                            vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                        } else if stored_attachment
-                            .aspect_mask
-                            .contains(vk::ImageAspectFlags::DEPTH)
-                        {
-                            attachment.store_op = vk::AttachmentStoreOp::STORE;
+                        vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                    } else if stored_attachment
+                        .aspect_mask
+                        .contains(vk::ImageAspectFlags::DEPTH)
+                    {
+                        attachment.store_op = vk::AttachmentStoreOp::STORE;
 
-                            vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL
-                        } else {
-                            attachment.stencil_store_op = vk::AttachmentStoreOp::STORE;
+                        vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL
+                    } else {
+                        attachment.stencil_store_op = vk::AttachmentStoreOp::STORE;
 
-                            vk::ImageLayout::STENCIL_ATTACHMENT_OPTIMAL
-                        };
-                        depth_stencil_set = true;
-                    }
+                        vk::ImageLayout::STENCIL_ATTACHMENT_OPTIMAL
+                    };
+                    depth_stencil_set = true;
                 }
 
                 // Resolved depth/stencil attachment
-                if !depth_stencil_resolve_set {
-                    if let Some((resolved_attachment, ..)) = exec.depth_stencil_resolve {
-                        let attachment = attachments.last_mut().unwrap();
-                        attachment.fmt = resolved_attachment.format;
-                        attachment.sample_count = resolved_attachment.sample_count;
-                        attachment.final_layout = if resolved_attachment
-                            .aspect_mask
-                            .contains(vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL)
-                        {
-                            vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                        } else if resolved_attachment
-                            .aspect_mask
-                            .contains(vk::ImageAspectFlags::DEPTH)
-                        {
-                            vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL
-                        } else {
-                            vk::ImageLayout::STENCIL_ATTACHMENT_OPTIMAL
-                        };
-                        depth_stencil_resolve_set = true;
-                    }
+                if !depth_stencil_resolve_set
+                    && let Some((resolved_attachment, ..)) = exec.depth_stencil_resolve
+                {
+                    let attachment = attachments.last_mut().unwrap();
+                    attachment.fmt = resolved_attachment.format;
+                    attachment.sample_count = resolved_attachment.sample_count;
+                    attachment.final_layout = if resolved_attachment
+                        .aspect_mask
+                        .contains(vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL)
+                    {
+                        vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                    } else if resolved_attachment
+                        .aspect_mask
+                        .contains(vk::ImageAspectFlags::DEPTH)
+                    {
+                        vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL
+                    } else {
+                        vk::ImageLayout::STENCIL_ATTACHMENT_OPTIMAL
+                    };
+                    depth_stencil_resolve_set = true;
                 }
             }
         }
@@ -2278,13 +2276,17 @@ impl Resolver {
                         next_access,
                     );
 
+                    // Color Attachment Read/Write (blending) will prevent discarding contents.
+                    // Note that we must check "not-read" because some reads write!
+                    let discard_contents =
+                        *prev_access == AccessType::Nothing || !is_read_access(*next_access);
+
                     ImageBarrier {
                         next_accesses: from_ref(next_access),
                         next_layout: image_access_layout(*next_access),
                         previous_accesses: from_ref(prev_access),
                         previous_layout: image_access_layout(*prev_access),
-                        discard_contents: *prev_access == AccessType::Nothing
-                            || is_write_access(*next_access),
+                        discard_contents,
                         src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                         dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                         image: *image,

@@ -151,7 +151,7 @@ impl Image {
             create_info.queue_family_indices(&device.physical_device.queue_family_indices);
         let image = unsafe {
             device.create_image(&create_info, None).map_err(|err| {
-                warn!("{err}");
+                warn!("unable to create image: {err}");
 
                 DriverError::Unsupported
             })?
@@ -175,21 +175,36 @@ impl Image {
                     allocation_scheme: AllocationScheme::GpuAllocatorManaged,
                 })
                 .map_err(|err| {
-                    warn!("{err}");
+                    warn!("unable to allocate image memory: {err}");
 
-                    DriverError::Unsupported
+                    unsafe {
+                        device.destroy_image(image, None);
+                    }
+
+                    DriverError::from_alloc_err(err)
+                })
+                .and_then(|allocation| {
+                    if let Err(err) = unsafe {
+                        device.bind_image_memory(image, allocation.memory(), allocation.offset())
+                    } {
+                        warn!("unable to bind image memory: {err}");
+
+                        if let Err(err) = allocator.free(allocation) {
+                            warn!("unable to free image allocation: {err}")
+                        }
+
+                        unsafe {
+                            device.destroy_image(image, None);
+                        }
+
+                        Err(DriverError::OutOfMemory)
+                    } else {
+                        Ok(allocation)
+                    }
                 })
         }?;
 
-        unsafe {
-            device
-                .bind_image_memory(image, allocation.memory(), allocation.offset())
-                .map_err(|err| {
-                    warn!("{err}");
-
-                    DriverError::Unsupported
-                })?;
-        }
+        debug_assert_ne!(image, vk::Image::null());
 
         Ok(Self {
             accesses,
@@ -343,7 +358,7 @@ impl Image {
 
             allocator.free(allocation)
         }
-        .unwrap_or_else(|_| warn!("Unable to free image allocation"));
+        .unwrap_or_else(|err| warn!("unable to free image allocation: {err}"));
     }
 
     /// Consumes a Vulkan image created by some other library.
@@ -1140,9 +1155,10 @@ impl From<UninitializedFieldError> for ImageViewInfoBuilderError {
 /// Specifies sample counts supported for an image used for storage operation.
 ///
 /// Values must not exceed the device limits specified by [Device.physical_device.props.limits].
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum SampleCount {
     /// Single image sample. This is the usual mode.
+    #[default]
     Type1,
 
     /// Multiple image samples.
@@ -1190,12 +1206,6 @@ impl From<SampleCount> for vk::SampleCountFlags {
             SampleCount::Type32 => Self::TYPE_32,
             SampleCount::Type64 => Self::TYPE_64,
         }
-    }
-}
-
-impl Default for SampleCount {
-    fn default() -> Self {
-        Self::Type1
     }
 }
 
