@@ -99,7 +99,7 @@ impl Device {
         }
 
         // Molten-vk doesn't support the full Vulkan feature set, hence the portability subset extension must be enabled.
-        #[cfg(all(target_os = "macos", feature = "macos-dynamic-molten-vk"))]
+        #[cfg(all(target_os = "macos", feature = "loaded"))]
         {
             enabled_ext_names.push(khr::portability_subset::NAME.as_ptr());
         }

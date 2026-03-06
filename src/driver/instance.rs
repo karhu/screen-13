@@ -11,7 +11,7 @@ use {
     },
 };
 
-#[cfg(any(not(target_os = "macos"), feature = "macos-dynamic-molten-vk"))]
+#[cfg(any(not(target_os = "macos"), feature = "loaded"))]
 use {
     log::{Level, Metadata, info, logger},
     std::{
@@ -25,7 +25,7 @@ use {
 #[cfg(target_os = "macos")]
 use std::env::set_var;
 
-#[cfg(any(not(target_os = "macos"), feature = "macos-dynamic-molten-vk"))]
+#[cfg(any(not(target_os = "macos"), feature = "loaded"))]
 unsafe extern "system" fn vulkan_debug_callback(
     _flags: vk::DebugReportFlagsEXT,
     _obj_type: vk::DebugReportObjectTypeEXT,
@@ -137,7 +137,7 @@ impl Instance {
         }
 
         // Link molten-vk dynamically if not on MacOS, or if explicitly requested.
-        #[cfg(any(not(target_os = "macos"), feature = "macos-dynamic-molten-vk"))]
+        #[cfg(any(not(target_os = "macos"), feature = "loaded"))]
         let entry = unsafe {
             Entry::load().map_err(|err| {
                 error!("Vulkan driver not found: {err}");
@@ -146,7 +146,7 @@ impl Instance {
             })?
         };
         // On MacOS, by default link molten-vk statically using ash-molten.
-        #[cfg(all(target_os = "macos", not(feature = "macos-dynamic-molten-vk")))]
+        #[cfg(all(target_os = "macos", not(feature = "loaded")))]
         let entry = ash_molten::load();
 
         #[allow(unused_mut)]
@@ -155,7 +155,7 @@ impl Instance {
         // If linking dynamically on MacOS, we require a few additional extensions.
         // Based on "Encountered VK_ERROR_INCOMPATIBLE_DRIVER" section in:
         // https://vulkan.lunarg.com/doc/view/latest/mac/getting_started.html
-        #[cfg(all(target_os = "macos", feature = "macos-dynamic-molten-vk"))]
+        #[cfg(all(target_os = "macos", feature = "loaded"))]
         {
             required_extensions.push(ash::khr::get_physical_device_properties2::NAME);
             required_extensions.push(ash::khr::portability_enumeration::NAME);
@@ -178,7 +178,7 @@ impl Instance {
             .enabled_extension_names(&instance_extensions);
 
         // Molten-vk doesn't support the full Vulkan feature set, hence the portability flag needs to be set.
-        #[cfg(all(target_os = "macos", feature = "macos-dynamic-molten-vk"))]
+        #[cfg(all(target_os = "macos", feature = "loaded"))]
         let instance_desc = instance_desc.flags(vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR);
 
         let instance = unsafe {
@@ -205,10 +205,10 @@ impl Instance {
 
         trace!("created a Vulkan instance");
 
-        #[cfg(all(target_os = "macos", not(feature = "macos-dynamic-molten-vk")))]
+        #[cfg(all(target_os = "macos", not(feature = "loaded")))]
         let (debug_loader, debug_callback, debug_utils) = (None, None, None);
 
-        #[cfg(any(not(target_os = "macos"), feature = "macos-dynamic-molten-vk"))]
+        #[cfg(any(not(target_os = "macos"), feature = "loaded"))]
         let (debug_loader, debug_callback, debug_utils) = if debug {
             let debug_info = vk::DebugReportCallbackCreateInfoEXT {
                 flags: vk::DebugReportFlagsEXT::ERROR
@@ -275,7 +275,7 @@ impl Instance {
     ) -> Vec<*const c_char> {
         if cfg!(all(
             target_os = "macos",
-            not(feature = "macos-dynamic-molten-vk")
+            not(feature = "loaded")
         )) {
             vec![]
         } else {
@@ -299,7 +299,7 @@ impl Instance {
     ) -> Vec<CString> {
         if cfg!(all(
             target_os = "macos",
-            not(feature = "macos-dynamic-molten-vk")
+            not(feature = "loaded")
         )) {
             vec![]
         } else {
